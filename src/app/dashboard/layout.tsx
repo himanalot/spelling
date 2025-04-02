@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 
@@ -13,12 +13,12 @@ export default function DashboardLayout({
 }) {
   const [isLoading, setIsLoading] = useState(true)
   const [isSigningOut, setIsSigningOut] = useState(false)
-  const supabase = createClient()
+  const supabase = createClientComponentClient()
   const router = useRouter()
 
   useEffect(() => {
     checkAuth()
-  }, [])
+  }, [router, supabase.auth])
 
   const checkAuth = async () => {
     try {
@@ -66,6 +66,7 @@ export default function DashboardLayout({
               <div className="ml-10 flex items-baseline space-x-4">
                 <NavLink href="/dashboard">Overview</NavLink>
                 <NavLink href="/dashboard/profiles">Researcher Profiles</NavLink>
+                <NavLink href="/dashboard/documents">Documents</NavLink>
               </div>
             </div>
             <button
