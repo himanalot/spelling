@@ -1,4 +1,4 @@
-# PIM2 Kinase Research Hub
+# (WIP, disregard---will become agentic KOL search)
 
 A web application for managing and exploring researcher profiles in the field of PIM2 kinase research. Built with Next.js, Supabase, and shadcn/ui.
 
