@@ -1,27 +1,20 @@
 'use client'
 
-import { Card } from "@/components/ui/card"
-import { Auth } from "@supabase/auth-ui-react"
-import { ThemeSupa } from "@supabase/auth-ui-shared"
-import { createClient } from "@/lib/supabase"
+import { useAuth } from "@/components/providers/AuthProvider"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 
-export default function Home() {
-  const supabase = createClient()
+export default function HomePage() {
+  const { user } = useAuth()
+  const router = useRouter()
 
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="w-full max-w-md">
-        <Card className="p-8">
-          <h1 className="text-2xl font-bold mb-6 text-center">Welcome to PIM2 Kinase Research Hub</h1>
-          <Auth
-            supabaseClient={supabase}
-            appearance={{ theme: ThemeSupa }}
-            providers={['google', 'github']}
-            redirectTo={`${process.env.NEXT_PUBLIC_APP_URL}/dashboard`}
-            theme="light"
-          />
-        </Card>
-      </div>
-    </main>
-  )
+  useEffect(() => {
+    if (user) {
+      router.replace('/dashboard')
+    } else {
+      router.replace('/login')
+    }
+  }, [user, router])
+
+  return null
 }

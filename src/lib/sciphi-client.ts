@@ -37,6 +37,33 @@ export class SciphiClient {
     }
   }
 
+  async getProfiles() {
+    try {
+      const response = await fetch(`${SCIPHI_API_URL}/profiles`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Fetch profiles error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error(`Failed to fetch profiles: ${response.statusText} - ${JSON.stringify(errorData)}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Fetch profiles error:', error);
+      throw error;
+    }
+  }
+
   async uploadDocument(file: {
     name: string;
     content: ArrayBuffer;

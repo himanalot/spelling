@@ -6,10 +6,13 @@ import Papa from "papaparse"
 import { useCallback, useEffect, useState } from "react"
 import { useDropzone } from "react-dropzone"
 import { toast } from "sonner"
-import { createClient } from "@/lib/supabase"
+import { createClient } from "@/utils/supabase/client"
 import { useRouter } from "next/navigation"
 import { Database } from "@/lib/database.types"
 import { Button } from "@/components/ui/button"
+import { createSciphiClient } from '@/lib/sciphi-client'
+import { useAuth } from '@/components/providers/AuthProvider'
+import { Badge } from '@/components/ui/badge'
 
 type ResearcherProfile = Database['public']['Tables']['researcher_profiles']['Row']
 type ResearcherProfileInsert = Database['public']['Tables']['researcher_profiles']['Insert']
@@ -31,34 +34,66 @@ interface CSVFile {
   count: number
 }
 
+interface Profile {
+  id: string;
+  metadata: {
+    name: string;
+    created_by_user_id: string;
+    created_by_email: string;
+    creation_timestamp: string;
+  };
+  config: {
+    summarize_results?: boolean;
+    search_type?: string;
+    [key: string]: any;
+  };
+  created_at: string;
+  email?: string;
+  publication_pdf?: string;
+}
+
 export default function ProfilesPage() {
   const [profiles, setProfiles] = useState<ResearcherProfile[]>([])
   const [csvFiles, setCsvFiles] = useState<CSVFile[]>([])
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
-  const [isSigningOut, setIsSigningOut] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
+  const { user } = useAuth()
   const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
-    loadCsvFiles()
-  }, [])
+    if (!user) {
+      router.replace('/login')
+      return
+    }
+
+    setIsLoading(true)
+    loadProfiles()
+      .then(() => setIsLoading(false))
+      .catch(() => setIsLoading(false))
+  }, [user, router])
 
   useEffect(() => {
-    loadProfiles()
-  }, [selectedFile])
+    if (user) {
+      loadCsvFiles()
+    }
+  }, [user])
 
   const loadCsvFiles = async () => {
+    if (!user) return
+
     try {
       const { data, error } = await supabase
         .from('researcher_profiles')
         .select('source_file')
+        .eq('user_id', user.id)
 
       if (error) throw error
 
-      // Get unique source files and their counts
       const fileMap = (data || []).reduce((acc, { source_file }) => {
         if (!source_file) return acc
         acc[source_file] = (acc[source_file] || 0) + 1
@@ -78,16 +113,17 @@ export default function ProfilesPage() {
   }
 
   const loadProfiles = async () => {
-    try {
-      if (!selectedFile) {
-        setProfiles([])
-        setIsLoading(false)
-        return
-      }
+    if (!user || !selectedFile) {
+      setProfiles([])
+      setIsLoading(false)
+      return
+    }
 
+    try {
       const { data, error } = await supabase
         .from('researcher_profiles')
         .select('*')
+        .eq('user_id', user.id)
         .eq('source_file', selectedFile)
         .order('created_at', { ascending: false })
 
@@ -102,19 +138,15 @@ export default function ProfilesPage() {
     }
   }
 
-  const handleSignOut = async () => {
-    try {
-      setIsSigningOut(true)
-      await supabase.auth.signOut()
-      router.replace('/')
-    } catch (error) {
-      console.error('Sign out error:', error)
-      toast.error('Failed to sign out. Please try again.')
-      setIsSigningOut(false)
+  useEffect(() => {
+    if (user && selectedFile) {
+      loadProfiles()
     }
-  }
+  }, [selectedFile, user])
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (!user) return
+
     acceptedFiles.forEach((file) => {
       Papa.parse(file, {
         header: true,
@@ -126,11 +158,8 @@ export default function ProfilesPage() {
               profile => profile["Full Name"] && profile["Profile"]
             )
 
-            const { data: { session } } = await supabase.auth.getSession()
-            if (!session) throw new Error('No session')
-
             const dbProfiles = validProfiles.map(profile => ({
-              user_id: session.user.id,
+              user_id: user.id,
               full_name: profile["Full Name"],
               profile: profile["Profile"],
               url: profile["URL"] || null,
@@ -153,7 +182,6 @@ export default function ProfilesPage() {
               description: `Uploaded ${dbProfiles.length} researcher profiles.`,
             })
 
-            // Refresh CSV files list and select the new file
             await loadCsvFiles()
             setSelectedFile(file.name)
           } catch (error) {
@@ -163,27 +191,44 @@ export default function ProfilesPage() {
             setIsUploading(false)
           }
         },
-        error: (error: Error) => {
-          toast.error("Error", {
-            description: "Failed to parse CSV file: " + error.message,
-          })
+        error: (error) => {
+          console.error('CSV parsing error:', error)
+          toast.error('Failed to parse CSV file')
           setIsUploading(false)
-        },
+        }
       })
     })
-  }, [supabase])
+  }, [user, supabase])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop })
 
   const filteredProfiles = profiles.filter((profile) => {
+    if (!searchTerm) return true
+    
     const searchLower = searchTerm.toLowerCase()
     return (
       profile.full_name.toLowerCase().includes(searchLower) ||
       profile.profile.toLowerCase().includes(searchLower) ||
-      profile.published_work.toLowerCase().includes(searchLower) ||
       (profile.email?.toLowerCase() || '').includes(searchLower)
     )
   })
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-red-500 max-w-xl text-center">
+          <h2 className="text-xl font-bold mb-2">Error</h2>
+          <p>{error}</p>
+          <button 
+            onClick={() => loadProfiles()}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <main className="container mx-auto py-10 space-y-8">
@@ -194,24 +239,6 @@ export default function ProfilesPage() {
             Browse and search through profiles of researchers with expertise in PIM2 kinase.
           </p>
         </div>
-        <button
-          onClick={handleSignOut}
-          disabled={isSigningOut}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            isSigningOut 
-              ? 'bg-gray-400 cursor-not-allowed' 
-              : 'bg-gray-800 hover:bg-gray-700 text-white'
-          }`}
-        >
-          {isSigningOut ? (
-            <span className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-gray-200 border-t-white rounded-full animate-spin"></div>
-              Signing out...
-            </span>
-          ) : (
-            'Sign Out'
-          )}
-        </button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-[300px_1fr]">
@@ -306,11 +333,11 @@ export default function ProfilesPage() {
                         name={profile.full_name}
                         profile={profile.profile}
                         url={profile.url || ''}
-                        publishedWork={profile.published_work}
-                        expertise={profile.expertise}
+                        publishedWork={profile.published_work || 'Default'}
+                        expertise={profile.expertise || 'No'}
                         publicationPdf={profile.publication_pdf || ''}
-                        publishedWorkReasoning={profile.published_work_reasoning || ''}
-                        expertiseReasoning={profile.expertise_reasoning || ''}
+                        publishedWorkReasoning={profile.published_work_reasoning || 'Default'}
+                        expertiseReasoning={profile.expertise_reasoning || 'No'}
                         email={profile.email || ''}
                       />
                     ))}
