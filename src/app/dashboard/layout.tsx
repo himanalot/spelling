@@ -58,6 +58,11 @@ export default function DashboardLayout({ children }: LayoutProps) {
       label: 'Tests',
       active: pathname === '/dashboard/tests',
     },
+    {
+      href: '/dashboard/leaders',
+      label: 'Leaders',
+      active: pathname === '/dashboard/leaders',
+    }
   ]
 
   return (

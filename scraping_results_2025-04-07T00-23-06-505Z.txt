@@ -1,0 +1,59 @@
+Dictionary Scraping Results
+========================
+
+FREQUENT Words
+--------------
+Total words processed: 316
+Successfully scraped: 274
+Failed to scrape: 4
+
+Failed words:
+- belemnoid
+- cochleariform
+- diacetate
+- talcum
+
+==================================================
+
+MODERATE Words
+--------------
+Total words processed: 601
+Successfully scraped: 521
+Failed to scrape: 9
+
+Failed words:
+- abducent
+- acetic
+- amyotrophic
+- aplastic
+- coquille
+- ponceau
+- processus
+- sustentacular
+- xeroderma
+
+==================================================
+
+INFREQUENT Words
+----------------
+Total words processed: 555
+Successfully scraped: 439
+Failed to scrape: 7
+
+Failed words:
+- airbus
+- boric
+- croupous
+- ductus
+- isolette
+- parotic
+- sobeit
+
+==================================================
+
+SUMMARY
+-------
+Total words processed: 1472
+Total successful: 1234
+Total failed: 20
+Success rate: 83.83%

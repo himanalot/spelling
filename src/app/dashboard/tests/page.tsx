@@ -7,11 +7,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
+interface Pronunciation {
+  audio_url: string | null
+  pronunciation_text: string | null
+  text_pronunciations: string[]
+}
+
 interface WordList {
   word: string
   definitions: any[]
   examples: any[]
-  pronunciations: any[]
+  pronunciations: Pronunciation[]
 }
 
 interface ListInfo {
@@ -35,6 +41,9 @@ export default function TestsPage() {
   const [userInput, setUserInput] = useState('')
   const [showAnswer, setShowAnswer] = useState(false)
   const [score, setScore] = useState({ correct: 0, total: 0 })
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [answers, setAnswers] = useState<Record<number, string>>({})
+  const [answersShown, setAnswersShown] = useState<Record<number, boolean>>({})
   const supabase = createClientComponentClient()
 
   useEffect(() => {
@@ -113,12 +122,18 @@ export default function TestsPage() {
           return [];
         }
 
-        // If table exists, fetch the words
+        // If table exists, fetch the words with valid pronunciations
         const { data, error } = await supabase
           .from(listInfo.table)
           .select('*')
+          .not('pronunciations', 'is', null)
           .not('pronunciations', 'eq', '[]')
-          .not('pronunciations', 'is', null);
+          // Filter out words where all pronunciations are empty
+          .not('pronunciations', 'cs', JSON.stringify([{
+            audio_url: null,
+            pronunciation_text: null,
+            text_pronunciations: []
+          }]));
 
         if (error) {
           console.error(`Error fetching ${listInfo.name}:`, error.message);
@@ -131,7 +146,18 @@ export default function TestsPage() {
           return [];
         }
 
-        return data;
+        // Additional client-side filtering to ensure we only get words with valid pronunciations
+        const filteredData = data.filter(word => {
+          if (!Array.isArray(word.pronunciations)) return false;
+          return word.pronunciations.some((p: Pronunciation) => 
+            p.audio_url !== null || 
+            p.pronunciation_text !== null || 
+            (Array.isArray(p.text_pronunciations) && p.text_pronunciations.length > 0)
+          );
+        });
+
+        console.log(`${listInfo.name}: Found ${data.length} words, filtered to ${filteredData.length} with valid pronunciations`);
+        return filteredData;
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error fetching ${listInfo.name}:`, error.message);
@@ -170,11 +196,21 @@ export default function TestsPage() {
     setUserInput('')
     setShowAnswer(false)
     setScore({ correct: 0, total: 0 })
+    setAnswers({})
+    setAnswersShown({})
   }
 
   const checkAnswer = () => {
     const currentWord = lists[currentList][currentWordIndex]
     const isCorrect = userInput.toLowerCase().trim() === currentWord.word.toLowerCase()
+    setAnswers(prev => ({
+      ...prev,
+      [currentWordIndex]: userInput
+    }))
+    setAnswersShown(prev => ({
+      ...prev,
+      [currentWordIndex]: true
+    }))
     setScore(prev => ({
       correct: prev.correct + (isCorrect ? 1 : 0),
       total: prev.total + 1
@@ -185,9 +221,51 @@ export default function TestsPage() {
   const nextWord = () => {
     if (currentWordIndex < lists[currentList].length - 1) {
       setCurrentWordIndex(prev => prev + 1)
-      setUserInput('')
-      setShowAnswer(false)
+      setUserInput(answers[currentWordIndex + 1] || '')
+      setShowAnswer(answersShown[currentWordIndex + 1] || false)
     }
+  }
+
+  const previousWord = () => {
+    if (currentWordIndex > 0) {
+      setCurrentWordIndex(prev => prev - 1)
+      setUserInput(answers[currentWordIndex - 1] || '')
+      setShowAnswer(answersShown[currentWordIndex - 1] || false)
+    }
+  }
+
+  const playPronunciations = async (pronunciations: any[]) => {
+    if (isPlaying) return;
+    setIsPlaying(true);
+
+    const audioUrls = pronunciations
+      .filter(p => p.audio_url)
+      .map(p => p.audio_url);
+
+    for (let i = 0; i < audioUrls.length; i++) {
+      const audio = new Audio(audioUrls[i]);
+      try {
+        await audio.play();
+        await new Promise(resolve => setTimeout(resolve, audio.duration * 1000 + 500)); // Wait for audio + 0.5s
+      } catch (error) {
+        console.error('Error playing audio:', error);
+      }
+    }
+
+    setIsPlaying(false);
+  };
+
+  const jumpToBeginning = () => {
+    setCurrentWordIndex(0)
+    setUserInput(answers[0] || '')
+    setShowAnswer(answersShown[0] || false)
+  }
+
+  const jumpToEnd = () => {
+    const lastIndex = lists[currentList].length - 1
+    setCurrentWordIndex(lastIndex)
+    setUserInput(answers[lastIndex] || '')
+    setShowAnswer(answersShown[lastIndex] || false)
   }
 
   const renderQuiz = () => {
@@ -195,87 +273,9 @@ export default function TestsPage() {
 
     const currentWord = lists[currentList][currentWordIndex]
     const progress = ((currentWordIndex + 1) / lists[currentList].length) * 100
+    const isFirstWord = currentWordIndex === 0
+    const isLastWord = currentWordIndex === lists[currentList].length - 1
 
-    return (
-      <Card className="w-full max-w-2xl mx-auto">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Question {currentWordIndex + 1} of {lists[currentList].length}</CardTitle>
-            <div className="text-sm">Score: {score.correct}/{score.total}</div>
-          </div>
-          <div className="w-full bg-secondary h-2 rounded-full mt-2">
-            <div 
-              className="bg-primary h-2 rounded-full transition-all duration-300" 
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            {currentWord.definitions.map((def: any, idx: number) => (
-              <p key={idx} className="text-lg">{def.definition_text}</p>
-            ))}
-            {currentWord.examples.length > 0 && (
-              <p className="text-muted-foreground italic">
-                Example: "{currentWord.examples[0].example_text.replace(new RegExp(currentWord.word, 'gi'), '_____')}"
-              </p>
-            )}
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                type="text"
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                placeholder="Type your answer..."
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !showAnswer) {
-                    checkAnswer()
-                  } else if (e.key === 'Enter' && showAnswer) {
-                    nextWord()
-                  }
-                }}
-                disabled={showAnswer}
-              />
-              <Button 
-                onClick={showAnswer ? nextWord : checkAnswer}
-                className="min-w-[100px]"
-              >
-                {showAnswer ? 'Next' : 'Check'}
-              </Button>
-            </div>
-            
-            {showAnswer && (
-              <div className={cn(
-                "p-4 rounded-lg",
-                userInput.toLowerCase().trim() === currentWord.word.toLowerCase()
-                  ? "bg-green-500/20 text-green-700 dark:text-green-300"
-                  : "bg-red-500/20 text-red-700 dark:text-red-300"
-              )}>
-                <p className="font-medium">
-                  {userInput.toLowerCase().trim() === currentWord.word.toLowerCase()
-                    ? "Correct!"
-                    : `Incorrect. The answer is: ${currentWord.word}`}
-                </p>
-                {currentWord.pronunciations?.length > 0 && (
-                  <p className="text-sm mt-1">
-                    Pronunciation: {currentWord.pronunciations[0].pronunciation_text}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
-  }
-
-  if (currentList) {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between mb-8">
@@ -284,9 +284,186 @@ export default function TestsPage() {
             Exit Test
           </Button>
         </div>
-        {renderQuiz()}
+        <div className="flex flex-col h-[calc(100vh-12rem)] max-w-2xl mx-auto">
+          <Card className="flex flex-col flex-1">
+            <CardHeader className="border-b">
+              <div className="flex justify-between items-center">
+                <CardTitle>Question {currentWordIndex + 1} of {lists[currentList].length}</CardTitle>
+                <div className="text-sm">Score: {score.correct}/{score.total}</div>
+              </div>
+              <div className="w-full bg-secondary h-2 rounded-full mt-2">
+                <div 
+                  className="bg-primary h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-col flex-1 p-0">
+              {/* Scrollable content area */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="space-y-6">
+                  {/* Definitions */}
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-lg">Definitions:</h3>
+                    <div className="space-y-2 pl-4">
+                      {currentWord.definitions.map((def: any, idx: number) => (
+                        <p key={idx} className="text-base">{idx + 1}. {def.definition_text}</p>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Examples */}
+                  {currentWord.examples.length > 0 && (
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-lg">Examples:</h3>
+                      <div className="space-y-2 pl-4">
+                        {currentWord.examples.map((ex: any, idx: number) => (
+                          <p key={idx} className="text-base italic">
+                            {idx + 1}. "{ex.example_text.replace(new RegExp(currentWord.word, 'gi'), '_____')}"
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pronunciations */}
+                  {currentWord.pronunciations?.length > 0 && (
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-lg">Pronunciation:</h3>
+                      <div className="flex items-center gap-4 pl-4">
+                        <Button 
+                          onClick={() => playPronunciations(currentWord.pronunciations)}
+                          disabled={isPlaying}
+                          variant="outline"
+                          className="flex items-center gap-2"
+                        >
+                          {isPlaying ? (
+                            <>
+                              <span className="i-lucide-loader-2 animate-spin" />
+                              Playing...
+                            </>
+                          ) : (
+                            <>
+                              <span className="i-lucide-volume-2" />
+                              Listen
+                            </>
+                          )}
+                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          {currentWord.pronunciations.map((pron: any, idx: number) => (
+                            pron.pronunciation_text && (
+                              <span key={idx} className="text-base bg-muted px-2 py-1 rounded">
+                                {pron.pronunciation_text}
+                              </span>
+                            )
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Fixed bottom section */}
+              <div className="border-t p-6 space-y-4 bg-card">
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={userInput}
+                    onChange={(e) => setUserInput(e.target.value)}
+                    placeholder="Type your answer..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !showAnswer) {
+                        checkAnswer()
+                      } else if (e.key === 'Enter' && showAnswer) {
+                        nextWord()
+                      }
+                    }}
+                    disabled={showAnswer}
+                  />
+                  <Button 
+                    onClick={showAnswer ? nextWord : checkAnswer}
+                    className="min-w-[100px]"
+                    disabled={showAnswer && isLastWord}
+                  >
+                    {showAnswer ? 'Next' : 'Check'}
+                  </Button>
+                </div>
+                
+                {showAnswer && (
+                  <div className={cn(
+                    "p-4 rounded-lg",
+                    userInput.toLowerCase().trim() === currentWord.word.toLowerCase()
+                      ? "bg-green-500/20 text-green-700 dark:text-green-300"
+                      : "bg-red-500/20 text-red-700 dark:text-red-300"
+                  )}>
+                    <p className="font-medium">
+                      {userInput.toLowerCase().trim() === currentWord.word.toLowerCase()
+                        ? "Correct!"
+                        : `Incorrect. The answer is: ${currentWord.word}`}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={jumpToBeginning}
+                      disabled={isFirstWord}
+                      className="w-[100px]"
+                      title="Jump to beginning"
+                    >
+                      <span className="i-lucide-chevrons-left" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={previousWord}
+                      disabled={isFirstWord}
+                      className="w-[100px]"
+                    >
+                      <span className="i-lucide-arrow-left mr-2" />
+                      Previous
+                    </Button>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {currentWordIndex + 1} / {lists[currentList].length}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={nextWord}
+                      disabled={isLastWord && showAnswer}
+                      className="w-[100px]"
+                    >
+                      Next
+                      <span className="i-lucide-arrow-right ml-2" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={jumpToEnd}
+                      disabled={isLastWord}
+                      className="w-[100px]"
+                      title="Jump to end"
+                    >
+                      <span className="i-lucide-chevrons-right" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     )
+  }
+
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+  }
+
+  if (currentList) {
+    return renderQuiz()
   }
 
   return (

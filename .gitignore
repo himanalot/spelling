@@ -33,31 +33,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# IDE
-.vscode/
-.idea/
-
-# Supabase
-/supabase/.branches
-/supabase/.temp
-
-# Dictionary data
-src/app/*_dictionary_data*.json
-src/app/*_words.txt
-*_cwl.pdf
-*_cwl.txt
-scraping_results_*.txt
-working_proxies_*.json
-proxies_list.txt
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Generated files
-missing_words_report.txt
-MISSINGWORDSFROMCWL.txt
-finalcwlfails.txt
-d_words.txt

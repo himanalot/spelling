@@ -1,0 +1,9 @@
+Dictionary Scraping Results
+========================
+
+SUMMARY
+-------
+Total words processed: 0
+Total successful: 0
+Total failed: 0
+Success rate: NaN%

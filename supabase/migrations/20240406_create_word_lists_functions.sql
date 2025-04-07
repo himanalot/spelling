@@ -10,15 +10,18 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create a function to get all word list tables
 CREATE OR REPLACE FUNCTION get_word_list_tables()
-RETURNS TABLE (table_name text) AS $$
+RETURNS TABLE (table_name text)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
     SELECT tablename::text
     FROM pg_tables
     WHERE schemaname = 'public'
-      AND tablename LIKE 'cwl_%_list_%';
+    AND tablename LIKE 'cwl_%_list_%'
+    ORDER BY tablename;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Create a function to get words from a specific list
 CREATE OR REPLACE FUNCTION get_word_list(list_name text)

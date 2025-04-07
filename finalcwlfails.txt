@@ -1,0 +1,109 @@
+Dictionary Scraping Results
+========================
+
+FREQUENT Words
+--------------
+Total words processed: 186
+Successfully scraped: 140
+Failed to scrape: 46
+
+Failed words:
+- abatable
+- aerotrain
+- agisting
+- agnostically
+- airbus
+- amitious
+- apocynthion
+- bacciform
+- baccivorous
+- beaner
+- boric
+- choplogical
+- comtemptible
+- comtemptuous
+- croupous
+- dewlappy
+- docorticate
+- dompty
+- ductus
+- enfrancishe
+- fibrocitis
+- grapevinegossipy
+- illumiometer
+- inbiber
+- inbroglio
+- inelude
+- isolette
+- kekepa
+- maiant
+- parotic
+- patulously
+- patriarchally
+- presybytery
+- rangibility
+- reverain
+- rhearetiary
+- romaticism
+- sabulosity
+- secesssion
+- sobeit
+- supererogate
+- synchnocarpous
+- taxophily
+- trinked
+- uprighteous
+- varrio
+
+==================================================
+
+MODERATE Words
+--------------
+Total words processed: 115
+Successfully scraped: 81
+Failed to scrape: 34
+
+Failed words:
+- abandonedly
+- abducent
+- acetic
+- acrolectal
+- sactuarial
+- ameliorable
+- amyotrophic
+- aplastic
+- sapologetic
+- bacteriophagic
+- borsalino
+- cinctured
+- consilient
+- coquille
+- corydora
+- donnybook
+- inebriacy
+- ninnyish
+- oenophilist
+- officinally
+- orbicularity
+- ponceau
+- porphyous
+- processus
+- sesquilateral
+- sustentacular
+- tambouriens
+- tetrapodous
+- thersitical
+- thrasonic
+- topogaphize
+- verdigrised
+- xeroderma
+- zerography
+
+==================================================
+
+SUMMARY
+-------
+Total words processed: 301
+Total successful: 221
+Total failed: 80
+Success rate: 73.42%
