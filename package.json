@@ -6,7 +6,11 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "import-words": "NODE_OPTIONS='--loader ts-node/esm' ts-node scripts/import_words.ts",
+    "import-dictionary": "NODE_OPTIONS='--loader ts-node/esm' ts-node scripts/import_dictionary.ts",
+    "import-word-lists": "NODE_OPTIONS='--loader ts-node/esm' ts-node scripts/import_word_lists.ts",
+    "check-missing-words": "NODE_OPTIONS='--loader ts-node/esm' ts-node scripts/check_missing_words.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
@@ -40,6 +44,7 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "sonner": "^2.0.3",
+    "supabase": "^2.20.5",
     "tailwind-merge": "^3.1.0",
     "tailwindcss-animate": "^1.0.7",
     "tw-animate-css": "^1.2.5",
@@ -49,12 +54,16 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.16",
-    "@types/node": "^20",
+    "@types/dotenv": "^6.1.1",
+    "@types/node": "^20.17.30",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^16.4.7",
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
-  }
+  },
+  "type": "module"
 }
